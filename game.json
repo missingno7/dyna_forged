@@ -1,0 +1,74 @@
+{
+  "format": "portforge-game-v0",
+  "name": "dyna_blaster",
+  "program": {
+    "file": "DYNA.EXE",
+    "sha256": "d0ac56038e5fccd428ee1fbc12c3995afc454f837bbf7fd88e76df0defbec5d9",
+    "size": 42096,
+    "packer": "unbranded self-extractor",
+    "packer_note": "no LZEXE/PKLITE signature: a 32-byte header, ZERO relocations, entry 0991:000E. The stub copies itself to the top of its own block and far-returns there, then decompresses the game to the load segment.",
+    "note": "the game proper. INTRO.EXE is the separate 320x200 intro sequence (assets/PIC is its 64000-byte mode-13h picture) and is not what plays."
+  },
+  "boot": {
+    "comment": "No boot image is needed: the stub is fast and the game is playable straight from the EXE (scripts/play.py). Recorded here so a boot image can be cut later without re-deriving it.",
+    "canonical_entry": "1010:0000",
+    "canonical_entry_comment": "The unpack stub reaches the game's own first instruction after 574160 guest instructions, with SS:SP = 22B3:1C00. CS == 1010h IS the load segment, so 'CS == 1010h' alone identifies game code for the whole session.",
+    "config_file": {
+      "file": "DYNA.CFG",
+      "comment": "28 bytes of KEY BINDINGS, read once at startup through INT 21h AH=3Dh/3Fh — pairs of (break, make) scancodes followed by the player/option bytes. The shipped file is: up 48h, down 50h, left 4Bh, right 4Dh, space 39h, left-ctrl 1Dh, I 17h, K 25h, J 24h, L 26h, A 1Eh, then 00 01 02 03 00 00. It is DATA, not a launch detail — the game re-reads nothing and writes it only from its own SETUP screen."
+    }
+  },
+  "pacing": {
+    "comment": "Measured, not chosen. The game NEVER programs PIT channel 0 (only channel 2, for the speaker), so it runs on the BIOS 18.2065 Hz tick, and it hooks INT 1Ch — the BIOS user tick hook — not INT 08h.",
+    "frame_heads": ["1010:1643"],
+    "frame_heads_comment": "THE tick seam. 1010:163C is 'has a tick arrived?' (cmp byte [1975:204F],0 / jne) and 1643 is the spin it falls into when one has not; 164A consumes the flag. The timer ISR at 1010:1355 sets [204F] = FFh as its first act, so one pass of this gate IS one displayed frame — and with no timer IRQs the game parks here exclusively.",
+    "timer_irqs_per_frame": 1,
+    "timer_irqs_comment": "The flag is a BOOLEAN, not a counter: ticks delivered in a lump collapse into one frame and the game silently runs slow. One per boundary is the only rate that matches the hardware.",
+    "simulation_hz": 18,
+    "simulation_hz_comment": "The game's own definition of a second, not a rounding: its ISR keeps a counter at [204C], compares it against 12h and only then steps the level clock (1010:1374..137F) — 18 ticks per second, which is what the 'time left' display in the HUD counts down with. 1 * 18 = 18 Hz against the hardware's 18.2065 Hz, 1.1% slow.",
+    "step_budget": 4000000,
+    "step_budget_comment": "Generous because a level load decompresses a whole IFF ILBM (GFX/NN.IMG) with no pass through the tick gate; the budget only decides how many guest-fallback frames that load is cut into."
+  },
+  "presentation": {
+    "comment": "A TWEAKED VGA mode with no BIOS number. The game sets BIOS mode 12h (640x480x16 planar) and then rewrites the CRTC and turns on the attribute controller's 8-bit-colour bit, which makes the four planes hold ONE BYTE per pixel indexing the DAC directly — the unchained 256-colour 'Mode X' family. Everything below is read back out of the hardware by port_forge; none of it is declared.",
+    "aspect_ratio": "32:29",
+    "aspect_ratio_comment": "SQUARE PIXELS (256:232 = 32:29), derived rather than assumed. The mode is 512 active dots of a 25.175 MHz clock (half-rate in 256-colour, so 256 pixels) over 464 active scan lines of a 524-line frame (Maximum Scan Line 1, so 232 rows). Against VGA's square-pixel reference — 640 dots at the same clock filling the screen width, 480 of 525 lines filling its height — that is 0.800 x 0.967 of a 4:3 screen = 1.103:1, and 256/232 = 1.103. It checks out in the artwork too: the playfield is 15x11 tiles of 16x16 pixels.",
+    "raster_geometry": {
+      "comment": "For reference when reading a screenshot against the registers. CRTC after the tweak: 5F 3F 50 82 4C 80 0B 3E 00 41 .. E2 0C CF 20 00 E7 04 C3, attribute mode control 41h.",
+      "raster": "512x464 (Horizontal Display End 64 char clocks x 8 dots; Vertical Display End 463 + 1)",
+      "pixels": "256x232",
+      "row_stride_bytes": 64,
+      "row_stride_comment": "CRTC Offset 20h x 2 = 64 bytes per plane per row, i.e. 256 pixels across four planes — the visible width exactly, no scroll margin.",
+      "double_buffered": true,
+      "double_buffered_comment": "The game writes only CRTC 0Ch (start address high) and flips between 2540h and 9F40h once per tick; 0Dh stays 40h. Both pages hold a full screen."
+    }
+  },
+  "input": {
+    "keyboard": true,
+    "mouse": false,
+    "mouse_comment": "Dyna Blaster never calls INT 33h. It is played on the keyboard (bindings in DYNA.CFG) and offers a joystick it probes through INT 15h AH=84h, which reports none present.",
+    "keys_comment": "Defaults from the shipped DYNA.CFG: arrows move, SPACE drops a bomb, LEFT CTRL detonates. Player 2 is I/K/J/L with A."
+  },
+  "audio": {
+    "comment": "Measured over 200 Minstr of attract-mode play with a Sound Blaster attached: 3228 writes to port 42h and 420 to port 61h — the PC speaker is doing the music and the effects.",
+    "music": "pc_speaker",
+    "effects": "pc_speaker",
+    "sound_blaster": {
+      "comment": "The game sweeps the six standard SB bases 210h, 220h, 230h, 240h, 250h, 260h. At each it resets the DSP at base+6 and runs an OPL detection at base+8/base+9 — it never looks at the AdLib port 388h. With a card at 220h it finds both the DSP and the FM chip, then probes the IRQ by unmasking IRQ0 alone and timing PIT channel 0 (which it leaves at reload FFFFh, 18.2068 Hz — the BIOS rate for all practical purposes).",
+      "base": "0x220",
+      "digital_data": "DIGI.DAT",
+      "music_data": ["MUSIC", "MUSIC.DAT"]
+    }
+  },
+  "data_files": {
+    "comment": "What the game reads, for reference. Paths arrive with DOS backslashes and in lower case ('gfx\\19.img').",
+    "GFX/NN.IMG": "IFF ILBM, 320x200, 8 bitplanes (256 colours), ByteRun1 compressed, 5:6 pixel aspect — the Amiga heritage showing. The game scans the loaded file for the 'BODY' chunk itself and unpacks from there.",
+    "DYNA.COD": "the plain-text level password table ('LEVEL 1.1  MBHLJQHY' ...).",
+    "DEMO.DAT": "the attract-mode demo script.",
+    "PAL": "text-format palette dump.",
+    "PIC": "64000 bytes = one 320x200 mode-13h screen, used by INTRO.EXE."
+  },
+  "assets_provenance": {
+    "copied_on": "2026-07-25"
+  }
+}
