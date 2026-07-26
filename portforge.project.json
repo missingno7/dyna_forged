@@ -1,0 +1,29 @@
+{
+  "$schema": "port_forge/schemas/portforge-project-v1.schema.json",
+  "format": "portforge-project-v1",
+  "player": {
+    "default_runtime": "oracle",
+    "runtimes": {
+      "oracle": {
+        "supported": true,
+        "adapter": "scripts/play.py:dos-rm-oracle",
+        "build_hint": "python port_forge/build.py --no-tests --targets pf_view"
+      },
+      "generated": {
+        "supported": false,
+        "reason": "No generated player artifact or verified generated launcher exists."
+      },
+      "port": {
+        "supported": false,
+        "reason": "No complete PortForge-independent source port exists."
+      }
+    }
+  },
+  "workflows": {
+    "play": {
+      "command": ["python", "scripts/play.py"],
+      "scope": "interactive",
+      "description": "Cold-boot the original through the real-mode oracle."
+    }
+  }
+}

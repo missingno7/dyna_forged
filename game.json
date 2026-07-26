@@ -1,6 +1,8 @@
 {
+  "$schema": "port_forge/schemas/portforge-game-v0.schema.json",
   "format": "portforge-game-v0",
   "name": "dyna_blaster",
+  "platform": "dos-rm",
   "program": {
     "file": "DYNA.EXE",
     "sha256": "d0ac56038e5fccd428ee1fbc12c3995afc454f837bbf7fd88e76df0defbec5d9",
