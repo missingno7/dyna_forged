@@ -33,6 +33,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     selection = player_runtime.select_runtime(ROOT, source)
+    if selection.runtime != "oracle":
+        raise player_runtime.PlayerConfigError(
+            f"runtime {selection.runtime!r} is declared supported but "
+            "Dyna Blaster has no matching player adapter"
+        )
     program = ROOT / "assets" / "DYNA.EXE"
     runner = PORT_FORGE / "build" / "pf_view.exe"
     if not selection.dry_run:

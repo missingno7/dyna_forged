@@ -1,6 +1,11 @@
 {
   "$schema": "port_forge/schemas/portforge-project-v1.schema.json",
   "format": "portforge-project-v1",
+  "artifacts": {
+    "replays": "artifacts/replays",
+    "snapshots": "artifacts/snapshots",
+    "atlas": "artifacts/atlas.pfatlas"
+  },
   "player": {
     "default_runtime": "oracle",
     "runtimes": {
